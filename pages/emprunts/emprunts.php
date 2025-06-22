@@ -1,156 +1,38 @@
 <?php
-require_once '../config/database.php';
+require_once '../../config/database.php';
+require_once '../../includes/functions.php';
 
 $page_title = 'Gestion des Emprunts';
-$message = '';
-$error = '';
 
-// Traitement des actions
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $action = $_POST['action'] ?? '';
-    
-    if ($action === 'emprunter') {
-        $livre_id = (int)($_POST['livre_id'] ?? 0);
-        $usager_id = (int)($_POST['usager_id'] ?? 0);
-        $duree_jours = (int)($_POST['duree_jours'] ?? 14);
-        
-        if (!$livre_id || !$usager_id) {
-            $error = 'Veuillez sélectionner un livre et un usager.';
-        } else {
-            try {
-                // Vérifier la disponibilité du livre
-                $stmt = $pdo->prepare("
-                    SELECT l.titre, l.exemplaires_total, 
-                           COALESCE(COUNT(e.id), 0) as empruntes_actuels
-                    FROM livres l
-                    LEFT JOIN emprunts e ON l.id = e.livre_id AND e.statut = 'en_cours'
-                    WHERE l.id = ?
-                    GROUP BY l.id
-                ");
-                $stmt->execute([$livre_id]);
-                $livre_info = $stmt->fetch();
-                
-                if (!$livre_info) {
-                    $error = 'Livre introuvable.';
-                } elseif ($livre_info['empruntes_actuels'] >= $livre_info['exemplaires_total']) {
-                    $error = 'Ce livre n\'est plus disponible (tous les exemplaires sont empruntés).';
-                } else {
-                    // Créer l'emprunt
-                    $date_retour = date('Y-m-d', strtotime("+$duree_jours days"));
-                    $stmt = $pdo->prepare("INSERT INTO emprunts (livre_id, usager_id, date_retour_prevue) VALUES (?, ?, ?)");
-                    $stmt->execute([$livre_id, $usager_id, $date_retour]);
-                    $message = 'Emprunt enregistré avec succès !';
-                }
-            } catch (PDOException $e) {
-                $error = 'Erreur lors de l\'enregistrement : ' . $e->getMessage();
-            }
-        }
-    }
-    
-    elseif ($action === 'retourner') {
-        $emprunt_id = (int)($_POST['emprunt_id'] ?? 0);
-        
-        try {
-            $stmt = $pdo->prepare("UPDATE emprunts SET date_retour_effective = NOW(), statut = 'retourne' WHERE id = ?");
-            $stmt->execute([$emprunt_id]);
-            $message = 'Livre retourné avec succès !';
-        } catch (PDOException $e) {
-            $error = 'Erreur lors du retour : ' . $e->getMessage();
-        }
-    }
-}
-
-// Récupération des données pour les formulaires
-try {
-    // Livres disponibles
-    $stmt = $pdo->query("
-        SELECT l.id, l.titre, l.auteur, l.exemplaires_total,
-               COALESCE(COUNT(e.id), 0) as empruntes_actuels,
-               (l.exemplaires_total - COALESCE(COUNT(e.id), 0)) as disponibles
-        FROM livres l
-        LEFT JOIN emprunts e ON l.id = e.livre_id AND e.statut = 'en_cours'
-        GROUP BY l.id
-        HAVING disponibles > 0
-        ORDER BY l.titre
-    ");
-    $livres_disponibles = $stmt->fetchAll();
-    
-    // Usagers actifs
-    $stmt = $pdo->query("SELECT id, nom, prenom, email FROM usagers WHERE statut = 'actif' ORDER BY nom, prenom");
-    $usagers = $stmt->fetchAll();
-    
-} catch (PDOException $e) {
-    $error = 'Erreur lors de la récupération des données : ' . $e->getMessage();
-}
-
-// Gestion des onglets
+// Gestion des paramètres
 $tab = $_GET['tab'] ?? 'actifs';
 $search = $_GET['search'] ?? '';
 $page = max(1, (int)($_GET['page'] ?? 1));
 $per_page = 15;
-$offset = ($page - 1) * $per_page;
 
 try {
-    $where_conditions = [];
-    $params = [];
+    // Récupération des données pour les formulaires
+    $livres_disponibles = getLivresDisponibles($pdo);
+    $usagers = getUsagersActifs($pdo);
     
-    // Filtres selon l'onglet
-    if ($tab === 'actifs') {
-        $where_conditions[] = "e.statut = 'en_cours'";
-    } elseif ($tab === 'retards') {
-        $where_conditions[] = "e.statut = 'en_cours' AND e.date_retour_prevue < CURDATE()";
-    } elseif ($tab === 'historique') {
-        $where_conditions[] = "e.statut = 'retourne'";
-    }
-    
-    // Recherche
-    if (!empty($search)) {
-        $where_conditions[] = "(l.titre LIKE ? OR l.auteur LIKE ? OR u.nom LIKE ? OR u.prenom LIKE ?)";
-        $params = array_merge($params, ["%$search%", "%$search%", "%$search%", "%$search%"]);
-    }
-    
-    $where_clause = !empty($where_conditions) ? 'WHERE ' . implode(' AND ', $where_conditions) : '';
-    
-    // Compter le total
-    $stmt = $pdo->prepare("
-        SELECT COUNT(*) as total
-        FROM emprunts e
-        JOIN livres l ON e.livre_id = l.id
-        JOIN usagers u ON e.usager_id = u.id
-        $where_clause
-    ");
-    $stmt->execute($params);
-    $total_emprunts = $stmt->fetch()['total'];
-    $total_pages = ceil($total_emprunts / $per_page);
-    
-    // Récupérer les emprunts
-    $stmt = $pdo->prepare("
-        SELECT e.*, l.titre, l.auteur, u.nom, u.prenom, u.email,
-               CASE 
-                   WHEN e.statut = 'retourne' THEN 'retourne'
-                   WHEN e.date_retour_prevue < CURDATE() THEN 'retard'
-                   WHEN DATEDIFF(e.date_retour_prevue, CURDATE()) <= 2 THEN 'bientot'
-                   ELSE 'actif'
-               END as statut_calcule,
-               DATEDIFF(CURDATE(), e.date_retour_prevue) as jours_retard
-        FROM emprunts e
-        JOIN livres l ON e.livre_id = l.id
-        JOIN usagers u ON e.usager_id = u.id
-        $where_clause
-        ORDER BY 
-            CASE WHEN e.statut = 'en_cours' THEN e.date_retour_prevue ELSE e.date_retour_effective END DESC
-        LIMIT $per_page OFFSET $offset
-    ");
-    $stmt->execute($params);
-    $emprunts = $stmt->fetchAll();
+    // Récupération des emprunts avec pagination
+    $result = getEmprunts($pdo, $tab, $search, $page, $per_page);
+    $emprunts = $result['emprunts'];
+    $total_emprunts = $result['total'];
+    $total_pages = $result['total_pages'];
     
 } catch (PDOException $e) {
-    $error = 'Erreur lors de la récupération des emprunts : ' . $e->getMessage();
+    $error = 'Erreur lors de la récupération des données : ' . $e->getMessage();
     $emprunts = [];
+    $livres_disponibles = [];
+    $usagers = [];
+    $total_pages = 0;
 }
 
-include '../includes/header.php';
+include '../../includes/header.php';
 ?>
+
+<link rel="stylesheet" href="../../assets/css/emprunts.css">
 
 <div class="row mb-4">
     <div class="col-md-8">
@@ -163,20 +45,6 @@ include '../includes/header.php';
         </button>
     </div>
 </div>
-
-<?php if ($message): ?>
-    <div class="alert alert-success alert-dismissible fade show">
-        <i class="fas fa-check-circle"></i> <?php echo htmlspecialchars($message); ?>
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
-<?php endif; ?>
-
-<?php if ($error): ?>
-    <div class="alert alert-danger alert-dismissible fade show">
-        <i class="fas fa-exclamation-triangle"></i> <?php echo htmlspecialchars($error); ?>
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
-<?php endif; ?>
 
 <!-- Onglets -->
 <ul class="nav nav-tabs mb-4">
@@ -262,34 +130,17 @@ include '../includes/header.php';
                                     <td><?php echo $emprunt['date_retour_effective'] ? date('d/m/Y', strtotime($emprunt['date_retour_effective'])) : '-'; ?></td>
                                 <?php endif; ?>
                                 <td>
-                                    <?php
-                                    switch ($emprunt['statut_calcule']) {
-                                        case 'retard':
-                                            echo '<span class="status-retard"><i class="fas fa-exclamation-triangle"></i> En retard (' . $emprunt['jours_retard'] . ' j.)</span>';
-                                            break;
-                                        case 'bientot':
-                                            echo '<span class="status-bientot"><i class="fas fa-clock"></i> Bientôt dû</span>';
-                                            break;
-                                        case 'actif':
-                                            echo '<span class="status-actif"><i class="fas fa-check-circle"></i> En cours</span>';
-                                            break;
-                                        case 'retourne':
-                                            echo '<span class="status-actif"><i class="fas fa-check"></i> Retourné</span>';
-                                            break;
-                                    }
-                                    ?>
+                                    <?php echo formatStatutEmprunt($emprunt['statut_calcule'], $emprunt['jours_retard']); ?>
                                 </td>
                                 <?php if ($tab !== 'historique'): ?>
                                     <td>
                                         <?php if ($emprunt['statut'] === 'en_cours'): ?>
-                                            <form method="POST" style="display: inline;">
-                                                <input type="hidden" name="action" value="retourner">
-                                                <input type="hidden" name="emprunt_id" value="<?php echo $emprunt['id']; ?>">
-                                                <button type="submit" class="btn btn-sm btn-success" 
-                                                        onclick="return confirm('Confirmer le retour de ce livre ?')">
-                                                    <i class="fas fa-undo"></i> Retourner
-                                                </button>
-                                            </form>
+                                            <button type="button" class="btn btn-sm btn-success btn-retour" 
+                                                    data-emprunt-id="<?php echo $emprunt['id']; ?>"
+                                                    data-livre-titre="<?php echo htmlspecialchars($emprunt['titre']); ?>"
+                                                    data-emprunteur="<?php echo htmlspecialchars($emprunt['prenom'] . ' ' . $emprunt['nom']); ?>">
+                                                <i class="fas fa-undo"></i> Retourner
+                                            </button>
                                         <?php endif; ?>
                                     </td>
                                 <?php endif; ?>
@@ -318,7 +169,7 @@ include '../includes/header.php';
                 </nav>
             <?php endif; ?>
         <?php else: ?>
-            <div class="text-center text-muted py-5">
+            <div class="empty-state">
                 <i class="fas fa-exchange-alt fa-3x mb-3"></i>
                 <h5>Aucun emprunt trouvé</h5>
                 <p>
@@ -345,10 +196,8 @@ include '../includes/header.php';
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form method="POST" onsubmit="return validerFormulaire(this)">
+            <form id="nouvelEmpruntForm">
                 <div class="modal-body">
-                    <input type="hidden" name="action" value="emprunter">
-                    
                     <div class="mb-3">
                         <label for="livre_id" class="form-label">Livre à emprunter *</label>
                         <select class="form-select" name="livre_id" id="livre_id" required>
@@ -402,14 +251,49 @@ include '../includes/header.php';
     </div>
 </div>
 
-<script>
-// Ouvrir automatiquement le modal si demandé
-<?php if (isset($_GET['action']) && $_GET['action'] === 'nouveau'): ?>
-document.addEventListener('DOMContentLoaded', function() {
-    var modal = new bootstrap.Modal(document.getElementById('nouvelEmpruntModal'));
-    modal.show();
-});
-<?php endif; ?>
-</script>
+<!-- Modal Retour -->
+<div class="modal fade" id="retourModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-undo"></i> Confirmer le retour
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="retourForm">
+                <div class="modal-body">
+                    <input type="hidden" name="emprunt_id" id="retourEmpruntId">
+                    
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Confirmation de retour</strong>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <strong>Livre :</strong> <span id="retourLivreTitre"></span>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <strong>Emprunteur :</strong> <span id="retourEmprunteur"></span>
+                    </div>
+                    
+                    <p class="text-muted">
+                        Êtes-vous sûr de vouloir marquer ce livre comme retourné ? 
+                        Cette action mettra à jour la date de retour effective.
+                    </p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-check"></i> Confirmer le retour
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 
-<?php include '../includes/footer.php'; ?>
+<script src="../../assets/js/emprunts.js"></script>
+
+<?php include '../../includes/footer.php'; ?>

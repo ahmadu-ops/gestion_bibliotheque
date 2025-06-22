@@ -40,7 +40,7 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) == 'emprunts.php' ? 'active' : ''; ?>" href="/pages/emprunts.php">
+                        <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) == 'emprunts.php' ? 'active' : ''; ?>" href="/pages/emprunts/emprunts.php">
                             <i class="fas fa-handshake"></i> Emprunts
                         </a>
                     </li>
