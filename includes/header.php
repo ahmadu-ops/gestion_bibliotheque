@@ -35,7 +35,7 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) == 'usagers.php' ? 'active' : ''; ?>" href="/pages/usagers.php">
+                        <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) == 'usagers.php' ? 'active' : ''; ?>" href="/pages/usagers/usagers.php">
                             <i class="fas fa-users"></i> Usagers
                         </a>
                     </li>

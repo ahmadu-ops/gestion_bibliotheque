@@ -156,3 +156,176 @@ function formatStatutEmprunt($statut_calcule, $jours_retard = 0) {
     }
 }
 ?>
+
+<?php
+// Fonctions pour la gestion des usagers
+
+/**
+ * Valide les données d'un usager
+ */
+function validerUsager($nom, $prenom, $email) {
+    if (empty($nom) || empty($prenom) || empty($email)) {
+        return 'Le nom, prénom et email sont obligatoires.';
+    }
+    
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        return 'L\'adresse email n\'est pas valide.';
+    }
+    
+    return null;
+}
+
+/**
+ * Ajoute un nouvel usager
+ */
+function ajouterUsager($pdo, $nom, $prenom, $email, $telephone = '') {
+    try {
+        $stmt = $pdo->prepare("INSERT INTO usagers (nom, prenom, email, telephone) VALUES (?, ?, ?, ?)");
+        $stmt->execute([$nom, $prenom, $email, $telephone]);
+        return ['success' => true, 'message' => 'Usager ajouté avec succès !'];
+    } catch (PDOException $e) {
+        if ($e->getCode() == 23000) {
+            return ['success' => false, 'error' => 'Cette adresse email est déjà utilisée.'];
+        }
+        return ['success' => false, 'error' => 'Erreur lors de l\'ajout : ' . $e->getMessage()];
+    }
+}
+
+/**
+ * Modifie un usager existant
+ */
+function modifierUsager($pdo, $id, $nom, $prenom, $email, $telephone = '', $statut = 'actif') {
+    try {
+        $stmt = $pdo->prepare("UPDATE usagers SET nom=?, prenom=?, email=?, telephone=?, statut=? WHERE id=?");
+        $stmt->execute([$nom, $prenom, $email, $telephone, $statut, $id]);
+        return ['success' => true, 'message' => 'Usager modifié avec succès !'];
+    } catch (PDOException $e) {
+        if ($e->getCode() == 23000) {
+            return ['success' => false, 'error' => 'Cette adresse email est déjà utilisée.'];
+        }
+        return ['success' => false, 'error' => 'Erreur lors de la modification : ' . $e->getMessage()];
+    }
+}
+
+/**
+ * Récupère les usagers avec pagination et recherche
+ */
+function getUsagers($pdo, $search = '', $page = 1, $per_page = 10) {
+    $offset = ($page - 1) * $per_page;
+    
+    try {
+        $where_clause = '';
+        $params = [];
+        
+        if (!empty($search)) {
+            $where_clause = "WHERE nom LIKE ? OR prenom LIKE ? OR email LIKE ?";
+            $params = ["%$search%", "%$search%", "%$search%"];
+        }
+        
+        // Compter le total
+        $stmt = $pdo->prepare("SELECT COUNT(*) as total FROM usagers $where_clause");
+        $stmt->execute($params);
+        $total_usagers = $stmt->fetch()['total'];
+        $total_pages = ceil($total_usagers / $per_page);
+        
+        // Récupérer les usagers avec le nombre d'emprunts actifs
+        $stmt = $pdo->prepare("
+            SELECT u.*, 
+                   COALESCE(e.emprunts_actifs, 0) as emprunts_actifs
+            FROM usagers u
+            LEFT JOIN (
+                SELECT usager_id, COUNT(*) as emprunts_actifs 
+                FROM emprunts 
+                WHERE statut = 'en_cours' 
+                GROUP BY usager_id
+            ) e ON u.id = e.usager_id
+            $where_clause
+            ORDER BY u.nom, u.prenom
+            LIMIT $per_page OFFSET $offset
+        ");
+        $stmt->execute($params);
+        $usagers = $stmt->fetchAll();
+        
+        return [
+            'success' => true,
+            'usagers' => $usagers,
+            'total' => $total_usagers,
+            'total_pages' => $total_pages,
+            'current_page' => $page
+        ];
+        
+    } catch (PDOException $e) {
+        return [
+            'success' => false,
+            'error' => 'Erreur lors de la récupération des usagers : ' . $e->getMessage(),
+            'usagers' => [],
+            'total' => 0,
+            'total_pages' => 0,
+            'current_page' => 1
+        ];
+    }
+}
+
+/**
+ * Récupère un usager par son ID
+ */
+function getUsagerById($pdo, $id) {
+    try {
+        $stmt = $pdo->prepare("SELECT * FROM usagers WHERE id = ?");
+        $stmt->execute([$id]);
+        return $stmt->fetch();
+    } catch (PDOException $e) {
+        return false;
+    }
+}
+
+/**
+ * Récupère l'historique des emprunts d'un usager
+ */
+function getHistoriqueEmprunts($pdo, $usager_id, $limit = 10) {
+    try {
+        $stmt = $pdo->prepare("
+            SELECT e.*, l.titre, l.auteur
+            FROM emprunts e
+            JOIN livres l ON e.livre_id = l.id
+            WHERE e.usager_id = ?
+            ORDER BY e.date_emprunt DESC
+            LIMIT ?
+        ");
+        $stmt->execute([$usager_id, $limit]);
+        return $stmt->fetchAll();
+    } catch (PDOException $e) {
+        return [];
+    }
+}
+
+/**
+ * Formate une date pour l'affichage
+ */
+function formaterDate($date) {
+    return date('d/m/Y', strtotime($date));
+}
+
+/**
+ * Retourne le badge de statut HTML
+ */
+function getBadgeStatut($statut) {
+    if ($statut === 'actif') {
+        return '<span class="status-actif">Actif</span>';
+    } else {
+        return '<span class="status-retard">Suspendu</span>';
+    }
+}
+
+/**
+ * Retourne le statut d'un emprunt
+ */
+function getStatutEmprunt($emprunt) {
+    if ($emprunt['date_retour_effective']) {
+        return '<span class="status-actif">Retourné</span>';
+    } elseif (strtotime($emprunt['date_retour_prevue']) < time()) {
+        return '<span class="status-retard">En retard</span>';
+    } else {
+        return '<span class="status-bientot">En cours</span>';
+    }
+}
