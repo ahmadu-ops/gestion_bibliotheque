@@ -119,7 +119,7 @@ include 'includes/header.php';
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5><i class="fas fa-history"></i> Derniers Emprunts</h5>
-                <a href="emprunts.php" class="btn btn-sm btn-outline-primary">Voir tout</a>
+                <a href="pages/emprunts/emprunts.php" class="btn btn-sm btn-outline-primary">Voir tout</a>
             </div>
             <div class="card-body">
                 <?php if (!empty($derniers_emprunts)): ?>

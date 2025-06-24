@@ -117,7 +117,7 @@ class EmpruntManager {
 
         try {
             const formData = new FormData(form);
-            const response = await fetch('retourner.php', {
+            const response = await fetch('retournerLivre.php', {
                 method: 'POST',
                 body: formData
             });

@@ -14,7 +14,7 @@
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
         <div class="container">
-            <a class="navbar-brand" href="index.php">
+            <a class="navbar-brand" href="/index.php">
                 <i class="fas fa-book"></i> Bibliothèque
             </a>
             
@@ -30,7 +30,7 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) == 'livres.php' ? 'active' : ''; ?>" href="/pages/livres.php">
+                        <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) == 'livres.php' ? 'active' : ''; ?>" href="/pages/livres/livres.php">
                             <i class="fas fa-book-open"></i> Livres
                         </a>
                     </li>

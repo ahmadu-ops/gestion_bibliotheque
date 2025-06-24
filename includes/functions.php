@@ -329,3 +329,184 @@ function getStatutEmprunt($emprunt) {
         return '<span class="status-bientot">En cours</span>';
     }
 }
+
+/**
+ * Ajouter un nouveau livre
+ */
+function ajouterLivre($pdo, $titre, $auteur, $isbn, $date_publication, $exemplaires, $categorie_id) {
+    if (empty($titre) || empty($auteur)) {
+        return ['success' => false, 'message' => 'Le titre et l\'auteur sont obligatoires.'];
+    }
+    
+    try {
+        $stmt = $pdo->prepare("INSERT INTO livres (titre, auteur, isbn, date_publication, exemplaires_total, exemplaires_disponibles, categorie_id) 
+                             VALUES (?, ?, ?, ?, ?, ?, ?)");
+        $stmt->execute([$titre, $auteur, $isbn, $date_publication, $exemplaires, $exemplaires, $categorie_id]);
+        return ['success' => true, 'message' => 'Livre ajouté avec succès !'];
+    } catch (PDOException $e) {
+        return ['success' => false, 'message' => 'Erreur lors de l\'ajout : ' . $e->getMessage()];
+    }
+}
+
+/**
+ * Modifier un livre existant
+ */
+function modifierLivre($pdo, $id, $titre, $auteur, $isbn, $date_publication, $exemplaires, $categorie_id) {
+    if (empty($titre) || empty($auteur)) {
+        return ['success' => false, 'message' => 'Le titre et l\'auteur sont obligatoires.'];
+    }
+    
+    try {
+        $stmt = $pdo->prepare("UPDATE livres SET titre=?, auteur=?, isbn=?, date_publication=?, exemplaires_total=?, categorie_id=? WHERE id=?");
+        $stmt->execute([$titre, $auteur, $isbn, $date_publication, $exemplaires, $categorie_id, $id]);
+        return ['success' => true, 'message' => 'Livre modifié avec succès !'];
+    } catch (PDOException $e) {
+        return ['success' => false, 'message' => 'Erreur lors de la modification : ' . $e->getMessage()];
+    }
+}
+
+/**
+ * Supprimer un livre
+ */
+function supprimerLivre($pdo, $id) {
+    try {
+        // Vérifier s'il y a des emprunts en cours
+        $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM emprunts WHERE livre_id = ? AND statut = 'en_cours'");
+        $stmt->execute([$id]);
+        $emprunts_actifs = $stmt->fetch()['count'];
+        
+        if ($emprunts_actifs > 0) {
+            return ['success' => false, 'message' => 'Impossible de supprimer ce livre car il est actuellement emprunté.'];
+        }
+        
+        $stmt = $pdo->prepare("DELETE FROM livres WHERE id = ?");
+        $stmt->execute([$id]);
+        return ['success' => true, 'message' => 'Livre supprimé avec succès !'];
+    } catch (PDOException $e) {
+        return ['success' => false, 'message' => 'Erreur lors de la suppression : ' . $e->getMessage()];
+    }
+}
+
+/**
+ * Ajouter une nouvelle catégorie
+ */
+function ajouterCategorie($pdo, $nom_categorie, $description) {
+    if (empty($nom_categorie)) {
+        return ['success' => false, 'message' => 'Le nom de la catégorie est obligatoire.'];
+    }
+    
+    try {
+        $stmt = $pdo->prepare("INSERT INTO categories (nom, description) VALUES (?, ?)");
+        $stmt->execute([$nom_categorie, $description]);
+        return ['success' => true, 'message' => 'Catégorie ajoutée avec succès !'];
+    } catch (PDOException $e) {
+        return ['success' => false, 'message' => 'Erreur lors de l\'ajout de la catégorie : ' . $e->getMessage()];
+    }
+}
+
+/**
+ * Récupérer toutes les catégories
+ */
+function getCategories($pdo) {
+    try {
+        $stmt = $pdo->query("SELECT * FROM categories ORDER BY nom");
+        return $stmt->fetchAll();
+    } catch (PDOException $e) {
+        return [];
+    }
+}
+
+/**
+ * Récupérer un livre par son ID
+ */
+function getLivreById($pdo, $id) {
+    try {
+        $stmt = $pdo->prepare("SELECT * FROM livres WHERE id = ?");
+        $stmt->execute([$id]);
+        return $stmt->fetch();
+    } catch (PDOException $e) {
+        return null;
+    }
+}
+
+/**
+ * Récupérer les livres avec pagination et filtres
+ */
+function getLivres($pdo, $search = '', $categorie_filter = '', $disponible_filter = '', $page = 1, $per_page = 10) {
+    $offset = ($page - 1) * $per_page;
+    
+    try {
+        $where_conditions = [];
+        $params = [];
+        
+        if (!empty($search)) {
+            $where_conditions[] = "(l.titre LIKE ? OR l.auteur LIKE ? OR l.isbn LIKE ?)";
+            $params = array_merge($params, ["%$search%", "%$search%", "%$search%"]);
+        }
+        
+        if (!empty($categorie_filter)) {
+            $where_conditions[] = "l.categorie_id = ?";
+            $params[] = $categorie_filter;
+        }
+        
+        if ($disponible_filter === 'disponible') {
+            $where_conditions[] = "(l.exemplaires_total - COALESCE(e.empruntes, 0)) > 0";
+        } elseif ($disponible_filter === 'emprunte') {
+            $where_conditions[] = "(l.exemplaires_total - COALESCE(e.empruntes, 0)) = 0";
+        }
+        
+        $where_clause = !empty($where_conditions) ? 'WHERE ' . implode(' AND ', $where_conditions) : '';
+        
+        // Compter le total
+        $count_query = "
+            SELECT COUNT(DISTINCT l.id) as total 
+            FROM livres l
+            LEFT JOIN categories c ON l.categorie_id = c.id
+            LEFT JOIN (
+                SELECT livre_id, COUNT(*) as empruntes 
+                FROM emprunts 
+                WHERE statut = 'en_cours' 
+                GROUP BY livre_id
+            ) e ON l.id = e.livre_id
+            $where_clause
+        ";
+        $stmt = $pdo->prepare($count_query);
+        $stmt->execute($params);
+        $total_livres = $stmt->fetch()['total'];
+        
+        // Récupérer les livres
+        $query = "
+            SELECT l.*, 
+                   c.nom as categorie_nom,
+                   (l.exemplaires_total - COALESCE(e.empruntes, 0)) as exemplaires_disponibles
+            FROM livres l
+            LEFT JOIN categories c ON l.categorie_id = c.id
+            LEFT JOIN (
+                SELECT livre_id, COUNT(*) as empruntes 
+                FROM emprunts 
+                WHERE statut = 'en_cours' 
+                GROUP BY livre_id
+            ) e ON l.id = e.livre_id
+            $where_clause
+            ORDER BY l.titre
+            LIMIT $per_page OFFSET $offset
+        ";
+        $stmt = $pdo->prepare($query);
+        $stmt->execute($params);
+        $livres = $stmt->fetchAll();
+        
+        return [
+            'livres' => $livres,
+            'total' => $total_livres,
+            'total_pages' => ceil($total_livres / $per_page)
+        ];
+        
+    } catch (PDOException $e) {
+        return [
+            'livres' => [],
+            'total' => 0,
+            'total_pages' => 0,
+            'error' => 'Erreur lors de la récupération des livres : ' . $e->getMessage()
+        ];
+    }
+}
