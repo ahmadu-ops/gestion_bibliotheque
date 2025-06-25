@@ -5,7 +5,6 @@
             <div class="row">
                 <div class="col-md-6">
                     <h6><i class="fas fa-book"></i> Système de Gestion de Bibliothèque</h6>
-                    <p class="text-muted">Application de gestion simple et efficace</p>
                 </div>
                 <div class="col-md-6 text-md-end">
                     <p class="text-muted mb-0">

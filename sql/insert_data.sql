@@ -8,43 +8,43 @@ INSERT INTO categories (nom, description) VALUES
 
 -- Insertion des livres
 INSERT INTO livres (titre, auteur, isbn, date_publication, exemplaires_total, exemplaires_disponibles, categorie_id) VALUES
-('Une si longue lettre', 'Mariama Bâ', '978-2-7384-0001-1', '1979-01-01', 3, 3, 1),
-('Le Ventre de l''Atlantique', 'Fatou Diome', '978-2-253-11442-8', '2003-01-01', 2, 2, 1),
-('Les Soleils des Indépendances', 'Ahmadou Kourouma', '978-2-02-000562-3', '1970-01-01', 4, 4, 1),
-('L''Étrange Destin de Wangrin', 'Amadou Hampâté Bâ', '978-2-264-00587-4', '1973-01-01', 2, 2, 1),
+('Une si longue lettre', 'Mariama Bâ', '9782738400011', '1979-01-01', 3, 3, 1),
+('Le Ventre de l''Atlantique', 'Fatou Diome', '9782253114428', '2003-01-01', 2, 2, 1),
+('Les Soleils des Indépendances', 'Ahmadou Kourouma', '9782020005623', '1970-01-01', 4, 4, 1),
+('L''Étrange Destin de Wangrin', 'Amadou Hampâté Bâ', '9782264005874', '1973-01-01', 2, 2, 1),
 
-('Nations nègres et culture', 'Cheikh Anta Diop', '978-2-7084-0001-2', '1954-01-01', 3, 3, 2),
-('L''Afrique noire précoloniale', 'Cheikh Anta Diop', '978-2-7084-0002-9', '1960-01-01', 2, 2, 2),
-('Histoire générale de l''Afrique', 'Joseph Ki-Zerbo', '978-92-3-201708-6', '1980-01-01', 5, 5, 2),
-('Le Sénégal dans l''histoire', 'Boubacar Barry', '978-2-86537-234-5', '1988-01-01', 2, 2, 2),
+('Nations nègres et culture', 'Cheikh Anta Diop', '9782708400012', '1954-01-01', 3, 3, 2),
+('L''Afrique noire précoloniale', 'Cheikh Anta Diop', '9782708400029', '1960-01-01', 2, 2, 2),
+('Histoire générale de l''Afrique', 'Joseph Ki-Zerbo', '9789232017086', '1980-01-01', 5, 5, 2),
+('Le Sénégal dans l''histoire', 'Boubacar Barry', '9782865372345', '1988-01-01', 2, 2, 2),
 
-('Introduction à la physique moderne', 'Serge Haroche', '978-2-7011-4532-1', '2010-01-01', 3, 3, 3),
-('Mathématiques pour l''ingénieur', 'Claude Aslangul', '978-2-7117-2156-8', '2008-01-01', 4, 4, 3),
-('Biologie cellulaire', 'Jean-Claude Callen', '978-2-10-054890-7', '2011-01-01', 2, 2, 3),
-('Chimie générale', 'Raymond Chang', '978-2-7613-1234-5', '2009-01-01', 3, 3, 3),
+('Introduction à la physique moderne', 'Serge Haroche', '9782701145321', '2010-01-01', 3, 3, 3),
+('Mathématiques pour l''ingénieur', 'Claude Aslangul', '9782711721568', '2008-01-01', 4, 4, 3),
+('Biologie cellulaire', 'Jean-Claude Callen', '9782100548907', '2011-01-01', 2, 2, 3),
+('Chimie générale', 'Raymond Chang', '9782761312345', '2009-01-01', 3, 3, 3),
 
 ('Les 7 habitudes de ceux qui réalisent tout ce qu''ils entreprennent', 'Stephen Covey', '978-2-7540-0987-4', '1989-01-01', 2, 2, 4),
-('Comment se faire des amis', 'Dale Carnegie', '978-2-253-00914-2', '1936-01-01', 3, 3, 4),
-('Réfléchissez et devenez riche', 'Napoleon Hill', '978-2-89225-699-8', '1937-01-01', 2, 2, 4),
-('L''Homme est l''avenir de l''homme', 'Pierre Teilhard de Chardin', '978-2-02-002847-9', '1959-01-01', 1, 1, 4),
+('Comment se faire des amis', 'Dale Carnegie', '9782253009142', '1936-01-01', 3, 3, 4),
+('Réfléchissez et devenez riche', 'Napoleon Hill', '9782892256998', '1937-01-01', 2, 2, 4),
+('L''Homme est l''avenir de l''homme', 'Pierre Teilhard de Chardin', '9782020028479', '1959-01-01', 1, 1, 4),
 
-('Le Petit Prince', 'Antoine de Saint-Exupéry', '978-2-07-040849-6', '1943-01-01', 5, 5, 5),
-('L''Étranger', 'Albert Camus', '978-2-07-036002-1', '1942-01-01', 3, 3, 5),
-('Madame Bovary', 'Gustave Flaubert', '978-2-07-041825-9', '1857-01-01', 2, 2, 5),
-('Les Misérables', 'Victor Hugo', '978-2-07-041962-1', '1862-01-01', 4, 4, 5);
+('Le Petit Prince', 'Antoine de Saint-Exupéry', '9782070408496', '1943-01-01', 5, 5, 5),
+('L''Étranger', 'Albert Camus', '9782070360021', '1942-01-01', 3, 3, 5),
+('Madame Bovary', 'Gustave Flaubert', '9782070418259', '1857-01-01', 2, 2, 5),
+('Les Misérables', 'Victor Hugo', '9782070419621', '1862-01-01', 4, 4, 5);
 
 -- Insertion des usagers
 INSERT INTO usagers (nom, prenom, email, telephone) VALUES
-('Diop', 'Aminata', 'aminata.diop@gmail.com', '+221 77 123 45 67'),
-('Ndiaye', 'Mamadou', 'mamadou.ndiaye@yahoo.fr', '+221 76 234 56 78'),
-('Fall', 'Fatou', 'fatou.fall@hotmail.com', '+221 78 345 67 89'),
-('Sarr', 'Ibrahima', 'ibrahima.sarr@gmail.com', '+221 77 456 78 90'),
-('Ba', 'Aissatou', 'aissatou.ba@outlook.com', '+221 76 567 89 01'),
-('Gueye', 'Ousmane', 'ousmane.gueye@gmail.com', '+221 78 678 90 12'),
-('Sy', 'Marième', 'marieme.sy@yahoo.fr', '+221 77 789 01 23'),
-('Cissé', 'Moussa', 'moussa.cisse@gmail.com', '+221 76 890 12 34'),
-('Kane', 'Khadija', 'khadija.kane@hotmail.com', '+221 78 901 23 45'),
-('Seck', 'Abdoulaye', 'abdoulaye.seck@gmail.com', '+221 77 012 34 56');
+('Diop', 'Aminata', 'aminata.diop@gmail.com', '771234567'),
+('Ndiaye', 'Mamadou', 'mamadou.ndiaye@yahoo.fr', '762345678'),
+('Fall', 'Fatou', 'fatou.fall@hotmail.com', '783456789'),
+('Sarr', 'Ibrahima', 'ibrahima.sarr@gmail.com', '774567890'),
+('Ba', 'Aissatou', 'aissatou.ba@outlook.com', '765678901'),
+('Gueye', 'Ousmane', 'ousmane.gueye@gmail.com', '786789012'),
+('Sy', 'Marième', 'marieme.sy@yahoo.fr', '777890123'),
+('Cissé', 'Moussa', 'moussa.cisse@gmail.com', '768901234'),
+('Kane', 'Khadija', 'khadija.kane@hotmail.com', '789012345'),
+('Seck', 'Abdoulaye', 'abdoulaye.seck@gmail.com', '770123456');
 
 -- Insertion des emprunts (15 emprunts)
 INSERT INTO emprunts (livre_id, usager_id, date_emprunt, date_retour_prevue, date_retour_effective, statut) VALUES

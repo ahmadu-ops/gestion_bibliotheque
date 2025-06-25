@@ -9,7 +9,6 @@
 
     // Récupération des statistiques
     $stats = recupererStats($pdo);
-
     $total_livres       = $stats['total_livres'] ?? 0;
     $emprunts_actifs    = $stats['emprunts_actifs'] ?? 0;
     $retards            = $stats['retards'] ?? 0;
