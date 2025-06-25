@@ -25,7 +25,5 @@
         <script src="assets/js/<?php echo $page_script; ?>"></script>
     <?php endif; ?>
     
-    <!-- Script global -->
-    <script src="assets/js/main.js"></script>
 </body>
 </html>

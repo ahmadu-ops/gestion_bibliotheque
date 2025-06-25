@@ -1,5 +1,127 @@
 <?php
-// functions.php - Fonctions pour la gestion des emprunts
+/**
+ * Traitement des formulaires AJAX
+ */
+
+function gererRequetesAjax(PDO $pdo)
+{
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        header('Content-Type: application/json');
+
+        try {
+            $action = $_POST['action'] ?? '';
+
+            switch ($action) {
+                case 'ajouter_usager':
+                    $nom = trim($_POST['nom'] ?? '');
+                    $prenom = trim($_POST['prenom'] ?? '');
+                    $email = trim($_POST['email'] ?? '');
+                    $telephone = trim($_POST['telephone'] ?? '');
+
+                    if (empty($nom) || empty($prenom) || empty($email)) {
+                        throw new Exception('Tous les champs obligatoires doivent être remplis.');
+                    }
+
+                    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                        throw new Exception('Format d\'email invalide.');
+                    }
+
+                    ajouterUsager($pdo, $nom, $prenom, $email, $telephone);
+                    echo json_encode(['success' => true, 'message' => 'Usager ajouté avec succès']);
+                    exit;
+
+                case 'ajouter_livre':
+                    $titre = trim($_POST['titre'] ?? '');
+                    $auteur = trim($_POST['auteur'] ?? '');
+                    $isbn = trim($_POST['isbn'] ?? '');
+                    $date_publication = $_POST['date_publication'] ?? null;
+                    $exemplaires = (int)($_POST['exemplaires'] ?? 1);
+                    $categorie_id = $_POST['categorie_id'];
+
+                    if (empty($titre) || empty($auteur)) {
+                        throw new Exception('Le titre et l\'auteur sont obligatoires.');
+                    }
+
+                    if(empty($categorie_id)) {
+                        throw new Exception('Veuillez selectionner la categorie');
+                    }
+
+                    ajouterLivre($pdo, $titre, $auteur, $isbn, $date_publication, $exemplaires, $categorie_id);
+                    echo json_encode(['success' => true, 'message' => 'Livre ajouté avec succès']);
+                    exit;
+
+                case 'nouvel_emprunt':
+                    $livre_id = (int)($_POST['livre_id'] ?? 0);
+                    $usager_id = (int)($_POST['usager_id'] ?? 0);
+                    $duree_jours = (int)($_POST['duree_jours'] ?? 14);
+
+                    creerEmprunt($pdo, $livre_id, $usager_id, $duree_jours);
+                    echo json_encode(['success' => true, 'message' => 'Emprunt enregistré avec succès']);
+                    exit;
+            }
+
+        } catch (Exception $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+            exit;
+        }
+    }
+}
+
+
+/**
+ * Recupere les stats du dashboard
+ */
+
+function recupererStats(PDO $pdo): array {
+    try {
+        // Nombre total de livres
+        $total_livres = getLivres($pdo)['total'];
+        // Nombre d'emprunts en cours
+        $emprunts_actifs = getEmprunts($pdo)['total'];
+
+
+        // Nombre de retards
+        $stmt = $pdo->query("SELECT COUNT(*) as total FROM emprunts 
+                             WHERE statut = 'en_cours' AND date_retour_prevue < CURDATE()");
+        $retards = $stmt->fetch()['total'];
+
+        // Nombre d'usagers actifs
+        $total_usagers = getUsagers($pdo)['total'];
+
+        // Derniers emprunts
+        $stmt = $pdo->query("SELECT e.*, l.titre, l.auteur, u.nom, u.prenom 
+                             FROM emprunts e 
+                             JOIN livres l ON e.livre_id = l.id 
+                             JOIN usagers u ON e.usager_id = u.id 
+                             ORDER BY e.date_emprunt DESC 
+                             LIMIT 5");
+        $derniers_emprunts = $stmt->fetchAll();
+
+        // Catégories pour formulaire
+        $categories = getCategories($pdo);
+        $livres_disponibles = getLivresDisponibles($pdo);
+        $usagers = getUsagersActifs($pdo);
+
+        return [
+            'total_livres'       => $total_livres,
+            'emprunts_actifs'    => $emprunts_actifs,
+            'retards'            => $retards,
+            'total_usagers'      => $total_usagers,
+            'derniers_emprunts'  => $derniers_emprunts,
+            'categories'         => $categories,
+            'livres_disponibles' => $livres_disponibles,
+            'usagers'            => $usagers
+        ];
+    } catch (PDOException $e) {
+        return [
+            'error' => "Erreur lors de la récupération des données : " . $e->getMessage()
+        ];
+    }
+}
+
 
 /**
  * Vérifie la disponibilité d'un livre

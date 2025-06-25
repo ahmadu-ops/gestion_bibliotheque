@@ -1,4 +1,3 @@
-DROP DATABASE gestion_bibliotheque;
 -- Création de la base de données (si elle n'existe pas déjà)
 CREATE DATABASE IF NOT EXISTS gestion_bibliotheque;
 USE gestion_bibliotheque;
@@ -21,7 +20,7 @@ CREATE TABLE livres (
     exemplaires_disponibles INT DEFAULT 1,
     categorie_id INT,
     date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (categorie_id) REFERENCES categories(id)
+    FOREIGN KEY (categorie_id) REFERENCES categories(id)    
 );
 
 -- Table des usagers
